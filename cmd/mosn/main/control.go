@@ -23,14 +23,18 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"runtime"
+	"syscall"
 
 	"github.com/urfave/cli"
+	admin "mosn.io/mosn/pkg/admin/server"
 	"mosn.io/mosn/pkg/admin/store"
+	"mosn.io/mosn/pkg/config/v2"
 	"mosn.io/mosn/pkg/configmanager"
 	"mosn.io/mosn/pkg/featuregate"
 	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/metrics"
 	"mosn.io/mosn/pkg/mosn"
+	"mosn.io/mosn/pkg/server/keeper"
 	"mosn.io/mosn/pkg/types"
 )
 
@@ -125,65 +129,106 @@ var (
 			},
 		},
 		Action: func(c *cli.Context) error {
-			configPath := c.String("config")
-			serviceCluster := c.String("service-cluster")
-			serviceNode := c.String("service-node")
-			serviceType := c.String("service-type")
-			serviceMeta := c.StringSlice("service-meta")
-			metaLabels := c.StringSlice("service-lables")
-			clusterDomain := c.String("cluster-domain")
-			podName := c.String("pod-name")
-			podNamespace := c.String("pod-namespace")
-			podIp := c.String("pod-ip")
-
-			flagLogLevel := c.String("log-level")
-
-			conf := configmanager.Load(configPath)
-			if mosnLogLevel, ok := flagToMosnLogLevel[flagLogLevel]; ok {
-				if mosnLogLevel == "OFF" {
-					log.GetErrorLoggerManagerInstance().Disable()
-				} else {
-					log.GetErrorLoggerManagerInstance().SetLogLevelControl(configmanager.ParseLogLevel(mosnLogLevel))
+			stm := mosn.NewStageManager(c, c.String("config"))
+			// parameter parsed registered
+			stm.AppendParamsParsedStage(func(c *cli.Context) {
+				// log level control
+				flagLogLevel := c.String("log-level")
+				if mosnLogLevel, ok := flagToMosnLogLevel[flagLogLevel]; ok {
+					if mosnLogLevel == "OFF" {
+						log.GetErrorLoggerManagerInstance().Disable()
+					} else {
+						log.GetErrorLoggerManagerInstance().SetLogLevelControl(configmanager.ParseLogLevel(mosnLogLevel))
+					}
 				}
-			}
-
-			// set feature gates
-			err := featuregate.Set(c.String("feature-gates"))
-			if err != nil {
-				log.StartLogger.Infof("[mosn] [start] parse feature-gates flag fail : %+v", err)
-				os.Exit(1)
-			}
-			// start pprof
-			if conf.Debug.StartDebug {
-				port := 9090 //default use 9090
-				if conf.Debug.Port != 0 {
-					port = conf.Debug.Port
+			}).AppendParamsParsedStage(func(c *cli.Context) {
+				// set feature gates
+				err := featuregate.Set(c.String("feature-gates"))
+				if err != nil {
+					log.StartLogger.Infof("[mosn] [start] parse feature-gates flag fail : %+v", err)
+					os.Exit(1)
 				}
-				addr := fmt.Sprintf("0.0.0.0:%d", port)
-				s := &http.Server{Addr: addr, Handler: nil}
-				store.AddService(s, "pprof", nil, nil)
-			}
-
-			// set mosn metrics flush
-			metrics.FlushMosnMetrics = true
-			// set version and go version
-			metrics.SetVersion(Version)
-			metrics.SetGoVersion(runtime.Version())
-
-			if serviceNode != "" {
-				types.InitXdsFlags(serviceCluster, serviceNode, serviceMeta, metaLabels)
-			} else {
-				if types.IsApplicationNodeType(serviceType) {
-					sn := podName + "." + podNamespace
-					serviceNode := serviceType + "~" + podIp + "~" + sn + "~" + clusterDomain
+			}).AppendParamsParsedStage(func(c *cli.Context) {
+				serviceCluster := c.String("service-cluster")
+				serviceNode := c.String("service-node")
+				serviceType := c.String("service-type")
+				serviceMeta := c.StringSlice("service-meta")
+				metaLabels := c.StringSlice("service-lables")
+				clusterDomain := c.String("cluster-domain")
+				podName := c.String("pod-name")
+				podNamespace := c.String("pod-namespace")
+				podIp := c.String("pod-ip")
+				if serviceNode != "" {
 					types.InitXdsFlags(serviceCluster, serviceNode, serviceMeta, metaLabels)
 				} else {
-					log.StartLogger.Infof("[mosn] [start] xds service type must be sidecar or router")
+					if types.IsApplicationNodeType(serviceType) {
+						sn := podName + "." + podNamespace
+						serviceNode := serviceType + "~" + podIp + "~" + sn + "~" + clusterDomain
+						types.InitXdsFlags(serviceCluster, serviceNode, serviceMeta, metaLabels)
+					} else {
+						log.StartLogger.Infof("[mosn] [start] xds service type must be sidecar or router")
+					}
 				}
-			}
-
-			mosn.Start(conf)
+			})
+			// initial registerd
+			stm.AppendInitStage(func(conf *v2.MOSNConfig) {
+				// set default log
+				types.InitDefaultPath(configmanager.GetConfigPath())
+			}).AppendInitStage(func(conf *v2.MOSNConfig) {
+				// start pprof
+				if conf.Debug.StartDebug {
+					port := 9090 //default use 9090
+					if conf.Debug.Port != 0 {
+						port = conf.Debug.Port
+					}
+					addr := fmt.Sprintf("0.0.0.0:%d", port)
+					s := &http.Server{Addr: addr, Handler: nil}
+					store.AddService(s, "pprof", nil, nil)
+				}
+			}).AppendInitStage(func(_ *v2.MOSNConfig) {
+				// set mosn metrics flush
+				metrics.FlushMosnMetrics = true
+				// set version and go version
+				metrics.SetVersion(Version)
+				metrics.SetGoVersion(runtime.Version())
+			}).AppendInitStage(func(conf *v2.MOSNConfig) {
+				// use default initialze
+				// if needs to extend, modify it
+				mosn.DefaultInitialize(conf)
+			})
+			// pre-startup
+			stm.AppendPreStartStage(func(m *mosn.Mosn) {
+				// the signals SIGKILL and SIGSTOP may not be caught by a program,
+				// so we need other ways to ensure that resources are safely cleaned up
+				keeper.AddSignalCallback(func() {
+					log.DefaultLogger.Infof("[mosn] [close] mosn closed by sys signal")
+					m.Close()
+				}, syscall.SIGINT, syscall.SIGTERM)
+			}).AppendPreStartStage(func(m *mosn.Mosn) {
+				m.StartXdsClient()
+			}).AppendPreStartStage(func(m *mosn.Mosn) {
+				// TODO: feature gate support more stages
+				featuregate.StartInit()
+			}).AppendPreStartStage(func(m *mosn.Mosn) {
+				m.HandleExtendConfig()
+			})
+			// startup
+			stm.AppendStartStage(func(m *mosn.Mosn) {
+				// register admin server
+				// admin server should registered after all prepares action ready
+				srv := admin.Server{}
+				srv.Start(m.Config)
+			}).AppendStartStage(func(m *mosn.Mosn) {
+				m.TransferConnection()
+			}).AppendStartStage(func(m *mosn.Mosn) {
+				m.CleanUpgrade()
+			}).AppendStartStage(func(m *mosn.Mosn) {
+				m.Start()
+			})
+			// execute all runs
+			stm.Run()
 			return nil
+
 		},
 	}
 
