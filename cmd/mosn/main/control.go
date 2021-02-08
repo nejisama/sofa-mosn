@@ -207,8 +207,10 @@ var (
 			}).AppendPreStartStage(func(m *mosn.Mosn) {
 				m.StartXdsClient()
 			}).AppendPreStartStage(func(m *mosn.Mosn) {
-				// TODO: feature gate support more stages
-				featuregate.StartInit()
+				// only use finally stage now.
+				// if needs featuregate init in parameter stage or init stage
+				// append a new stage and called featuregate.ExecuteInitFunc(keys...)
+				featuregate.FinallyInitFunc()
 			}).AppendPreStartStage(func(m *mosn.Mosn) {
 				m.HandleExtendConfig()
 			})
