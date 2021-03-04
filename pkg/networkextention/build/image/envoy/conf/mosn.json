@@ -8,21 +8,15 @@
           "name": "serverListener",
           "address": "0.0.0.0:2990",
           "bind_port": false,
-          "log_path": "/home/admin/mosn/logs/mosn-err.log",
           "listener_filters": [],
           "stream_filters": [
             {
-              "type": "metadata",
-              "config": {
-                "metadataers": [
-                  {
-                    "meta_data_key": "UNIT",
-                    "config":{
-                        "unit_key":"uid"
-                    }
-                  }
-                ]
-              }
+              "type": "echo",
+	      "config": {
+		      "status":0,
+		      "header_list": {"grpc-status":"0","content-type":"application/grpc"},
+		      "body": "hello"
+	      }
             }
           ]
         }
