@@ -40,6 +40,7 @@ func (f *grpcFilter) OnReceive(ctx context.Context, headers api.HeaderMap, buf b
 		Trailer:   trailers,
 		EndStream: true, // TODO: 应该有一个办法判断
 	}
+	fmt.Println("收到的请求:", headers, buf.Bytes(), trailers)
 	// TODO: 支持流式
 	f.buf.Send(mstream)
 	resp := f.buf.Recv()

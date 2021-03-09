@@ -11,12 +11,7 @@
           "listener_filters": [],
           "stream_filters": [
             {
-              "type": "echo",
-	      "config": {
-		      "status":0,
-		      "header_list": {"grpc-status":"0","content-type":"application/grpc"},
-		      "body": "hello"
-	      }
+              "type": "grpc"
             }
           ]
         }

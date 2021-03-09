@@ -2,9 +2,9 @@ package grpc
 
 import (
 	"context"
+	"fmt"
 
 	"mosn.io/api"
-	"mosn.io/mosn/pkg/log"
 	"mosn.io/mosn/pkg/networkextention/pkg/module/grpc"
 	"mosn.io/pkg/buffer"
 )
@@ -40,20 +40,12 @@ func (f *grpcFilter) OnReceive(ctx context.Context, headers api.HeaderMap, buf b
 		Trailer:   trailers,
 		EndStream: true, // TODO: 应该有一个办法判断
 	}
+	fmt.Println("收到的请求:", headers, buf.Bytes(), trailers)
 	// TODO: 支持流式
 	f.buf.Send(mstream)
 	resp := f.buf.Recv()
-	log.DefaultLogger.Infof("响应头:", resp.Header)
-	log.DefaultLogger.Infof("响应体:", resp.Body.Bytes())
-	log.DefaultLogger.Infof("响应尾:", resp.Trailer)
-	//f.handler.SendDirectResponse(resp.Header, resp.Body, resp.Trailer)
-	resp.Trailer.Range(func(k, v string) bool {
-		resp.Header.Set(k, v)
-		return true
-	})
-	resp.Header.Del(":status")
-	log.DefaultLogger.Infof("修改后的头", resp.Header)
-	f.handler.SendHijackReplyWithBody(200, resp.Header, resp.Body.String())
+	fmt.Println("响应的内容:", resp)
+	f.handler.SendDirectResponse(resp.Header, resp.Body, resp.Trailer)
 	return api.StreamFilterStop
 }
 

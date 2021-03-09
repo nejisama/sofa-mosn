@@ -59,6 +59,7 @@ func (t *bufferHandler) WriteStatus(s *GRPCStream, st *status.Status) {
 		Header:  header,
 		Trailer: trailer,
 	}
+	fmt.Println("测试异常Write")
 	t.buf.Write(ms)
 }
 
@@ -75,6 +76,7 @@ func (t *bufferHandler) Write(s *GRPCStream, data []byte) {
 		Trailer: trailer,
 		Body:    buffer.NewIoBufferBytes(data), // TODO:内存复用
 	}
+	fmt.Println("测试正常Write")
 	t.buf.Write(ms)
 }
 

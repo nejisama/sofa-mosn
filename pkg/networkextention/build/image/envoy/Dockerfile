@@ -1,4 +1,4 @@
-FROM mosnio/mosn-network-envoy-sdk:1.16.2
+FROM mosnio/mosn-network-envoy-sdk-grpc:1.16.2
 
 ENV CHROOT_MOSN_PREFIX         /home/admin/mosn
 

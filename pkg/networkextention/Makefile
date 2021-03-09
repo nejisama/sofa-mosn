@@ -24,7 +24,7 @@ test:
 # build mosn on envoy image
 build-moe-image:
 	# 临时加一个vendor
-	go mod vendor
+	GO111MODULE=on go mod vendor
 	docker run --rm -v $(shell cd ../../ && pwd):/go/src/${PROJECT_NAME} -w /go/src/${PROJECT_NAME}  ${MOSNIOHUB}/${IMAGE_NAME_ENVOY_SDK}:${ENVOY_VERSION}  sh -c "cd /go/src/${PROJECT_NAME_NETWORKDIR}/ &&  make build-l7"
 	@rm -rf IMAGEBUILD
 	cp -r build/image/envoy IMAGEBUILD && cp ${TARGET}/golang_extention.so IMAGEBUILD/  

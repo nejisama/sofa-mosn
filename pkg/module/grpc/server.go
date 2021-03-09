@@ -121,6 +121,7 @@ func (s *Server) processUnaryRPC(t BufferHandler, stream *GRPCStream, srv *servi
 	ctx := context.Background()                           // 这里先简化，暂时测试的函数中没有ctx的使用
 	reply, appErr := md.Handler(srv.server, ctx, df, nil) // interceptor暂时也没用到
 	if appErr != nil {
+		fmt.Println("Handler报错:", appErr)
 		appStatus := status.New(codes.Unknown, appErr.Error())
 		t.WriteStatus(stream, appStatus)
 		return appErr
