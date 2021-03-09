@@ -143,7 +143,8 @@ func (stm *StageManager) runStartStage() time.Duration {
 	for _, f := range stm.startupStages {
 		f(stm.data.mosn)
 	}
-	stm.data.mosn.Start() // start mosn in final stage
+	// start mosn after all start stages finished
+	stm.data.mosn.Start()
 	return time.Since(st)
 }
 
@@ -155,6 +156,13 @@ func (stm *StageManager) Run() {
 	log.StartLogger.Infof("mosn init cost: %v", stm.runInitStage())
 	log.StartLogger.Infof("mosn prepare to start cost: %v", stm.runPreStartStage())
 	log.StartLogger.Infof("mosn start cost: %v", stm.runStartStage())
-	// wait mosn done
+}
+
+// WaitFinish waits mosn start finished.
+// if Run is not called, return directly
+func (stm *StageManager) WaitFinish() {
+	if !stm.started {
+		return
+	}
 	stm.data.mosn.wg.Wait()
 }

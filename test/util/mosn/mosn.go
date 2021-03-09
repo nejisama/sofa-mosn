@@ -1,7 +1,6 @@
 package mosn
 
 import (
-	admin "mosn.io/mosn/pkg/admin/server"
 	"mosn.io/mosn/pkg/config/v2"
 	"mosn.io/mosn/pkg/mosn"
 )
@@ -12,7 +11,7 @@ type MosnWrapper struct {
 
 // This is a wrapper for main
 func NewMosn(c *v2.MOSNConfig) *MosnWrapper {
-	mosn.DefaultInitialize(c)
+	mosn.DefaultInitStage(c)
 	m := mosn.NewMosn(c)
 	return &MosnWrapper{
 		m: m,
@@ -21,12 +20,8 @@ func NewMosn(c *v2.MOSNConfig) *MosnWrapper {
 
 // see details in cmd/mosn/main/control.go
 func (m *MosnWrapper) Start() {
-	m.m.StartXdsClient()
-	m.m.HandleExtendConfig()
-	srv := admin.Server{}
-	srv.Start(m.m.Config)
-	m.m.TransferConnection()
-	m.m.CleanUpgrade()
+	mosn.DefaultPreStartStage(m.m)
+	mosn.DefaultStartStage(m.m)
 	m.m.Start()
 }
 

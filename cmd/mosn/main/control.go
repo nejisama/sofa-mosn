@@ -139,6 +139,11 @@ var (
 			stm.AppendStartStage(mosn.DefaultStartStage)
 			// execute all runs
 			stm.Run()
+
+			// if functions needs to be called after mosn start, add here.
+
+			// wait mosn finished
+			stm.WaitFinish()
 			return nil
 
 		},

@@ -38,10 +38,11 @@ func TestStageManager(t *testing.T) {
 		return &v2.MOSNConfig{}
 	})
 	defer configmanager.RegisterConfigLoadFunc(configmanager.DefaultConfigLoad)
-	stm.newMosn = func(*v2.MOSNConfig) *Mosn {
+	stm.newMosn = func(c *v2.MOSNConfig) *Mosn {
 		testCall = 0
 		return &Mosn{
-			wg: sync.WaitGroup{},
+			wg:     sync.WaitGroup{},
+			Config: c,
 		}
 	}
 
@@ -80,4 +81,6 @@ func TestStageManager(t *testing.T) {
 		stm.data.config != nil) {
 		t.Errorf("stage manager runs failed...")
 	}
+	stm.data.mosn.Close()
+	stm.WaitFinish()
 }
