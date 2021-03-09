@@ -1,6 +1,25 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package mosn
 
 import (
+	"fmt"
+	"net/http"
 	goplugin "plugin"
 
 	"mosn.io/api"
@@ -17,17 +36,19 @@ import (
 	"mosn.io/mosn/pkg/types"
 )
 
-// Default Initialize wrappers. if more initialize needs to extend.
-// modify it in main function
-func DefaultInitialize(c *v2.MOSNConfig) {
-	InitializePidFile(c)
-	InitializeTracing(c)
-	InitializePlugin(c)
-	InitializeMetrics(c)
-	InitializeThirdPartCodec(c)
+// Init Stages Function
+func InitDebugServe(c *v2.MOSNConfig) {
+	if c.Debug.StartDebug {
+		port := 9090 //default use 9090
+		if c.Debug.Port != 0 {
+			port = c.Debug.Port
+		}
+		addr := fmt.Sprintf("0.0.0.0:%d", port)
+		s := &http.Server{Addr: addr, Handler: nil}
+		store.AddService(s, "pprof", nil, nil)
+	}
 }
 
-// Init Stages Function
 func InitializeTracing(c *v2.MOSNConfig) {
 	initializeTracing(c.Tracing)
 }
@@ -49,6 +70,7 @@ func initializeTracing(config v2.TracingConfig) {
 }
 
 func InitializeMetrics(c *v2.MOSNConfig) {
+	metrics.FlushMosnMetrics = true
 	initializeMetrics(c.Metrics)
 }
 

@@ -159,7 +159,7 @@ func TestNewMosn(t *testing.T) {
 		if err := json.Unmarshal(content, cfg); err != nil {
 			t.Fatal(err)
 		}
-		DefaultInitialize(cfg)
+		DefaultInitStage(cfg)
 		NewMosn(cfg)
 		// verify routers
 		routerMng := router.GetRoutersMangerInstance()
@@ -178,7 +178,7 @@ func TestNewMosn(t *testing.T) {
 		if err := json.Unmarshal(content, cfg); err != nil {
 			t.Fatal(err)
 		}
-		DefaultInitialize(cfg)
+		DefaultInitStage(cfg)
 		m := NewMosn(cfg)
 		routerMng := router.GetRoutersMangerInstance()
 		rw0 := routerMng.GetRouterWrapperByName("server_router")
